@@ -10,7 +10,20 @@ import { ReactQueryDevtools } from 'react-query/devtools'
  */
 
 export default function App () {
-  const queryClient = new QueryClient()
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        /**
+         * Window Focus Refetching
+         * If a user leaves your application and returns to stale data,
+         * React Query automatically requests fresh data for you in the
+         * background. You can disable this globally or per-query using
+         * the refetchOnWindowFocus option:
+         */
+        refetchOnWindowFocus: false
+      }
+    }
+  })
 
   return (
     <>
@@ -37,20 +50,35 @@ function Example () {
    * 'isFetching' - In any state, if the query is fetching at any time (including background refetching) isFetching will be true.
    */
 
-  const { isLoading, error, data } = useQuery('repoData', async () => {
-    // queryKey === ['repoData'] String-Only Query Keys
-    // return fetch('https://api.github.com/repos/tannerlinsley/react-query').then(
-    //   res => res.json()
-    // )
-    const response = await fetch(
-      'https://api.github.com/repos/tannerlinsley/react-query'
-    )
-    console.log(response)
-    if (!response.ok) {
-      throw new Error('Network response was not ok')
+  const {
+    isLoading,
+    isError,
+    error,
+    data,
+    isFetching,
+    isPreviousData // is made available to know what data the query is currently providing you
+  } = useQuery(
+    'repoData',
+    async () => {
+      // queryKey === ['repoData'] String-Only Query Keys
+      // return fetch('https://api.github.com/repos/tannerlinsley/react-query').then(
+      //   res => res.json()
+      // )
+      const response = await fetch(
+        'https://api.github.com/repos/tannerlinsley/react-query'
+      )
+      console.log(response)
+      if (!response.ok) {
+        throw new Error('Network response was not ok')
+      }
+      return response.json()
+    },
+    {
+      refetchOnWindowFocus: false, // Disabling Per-Query
+      retry: 1, // Will retry failed requests 10 times before displaying an error
+      keepPreviousData: true // When the new data arrives, the previous data is seamlessly swapped to show the new data.
     }
-    return response.json()
-  })
+  )
 
   console.log(data)
 
@@ -58,11 +86,12 @@ function Example () {
    * 'isLoading' or status === 'loading' - The query has no data and is currently fetching
    * 'isError' or status === 'error' - The query encountered an error
    * 'isSuccess' or status === 'success' - The query was successful and data is available
-   * 'isIdle' or status === 'idle' - The query is currently disabled (you'll learn more about this in a bit)
+   * 'isIdle' or status === 'idle' - The query is currently disabled
    */
 
   if (isLoading) return <p>Loading...</p>
-  if (error) return <p>Error :(</p>
+  if (isError) return <p>Error :(</p>
+  if (isFetching) return <p>Fetching...</p> // Background Fetching Indicators
 
   // We can assume by this point that `isSuccess === true`
   return (
